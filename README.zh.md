@@ -44,6 +44,16 @@ pnpm dsh web
 
 `pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
 
+### 在 Windows 上脱离终端运行
+
+`dsh web` 运行在前台，启动它的终端拥有该服务，关闭该窗口即停止服务。若要安装快捷方式，以隐藏方式启动服务并在独立窗口中打开 Web UI，请在仓库检出目录下运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\setup.ps1
+```
+
+该脚本会检查 Node.js 版本是否受支持、从 npm 安装 CLI，并创建桌面、开始菜单与登录启动快捷方式。检出目录既不需要 `pnpm install`，也不需要构建。传入 `-Port`、`-Autostart none|server|window` 或 `-Uninstall` 可调整或撤销安装。
+
 ## 社区与支持
 
 - 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
