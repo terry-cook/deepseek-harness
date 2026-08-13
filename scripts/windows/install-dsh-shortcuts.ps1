@@ -53,6 +53,23 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ShortcutName = 'DeepSeek Harness.lnk'
+
+# Windows PowerShell raises a terminating NativeCommandError for any stderr line
+# a native command writes while $ErrorActionPreference is Stop, and browsers
+# chatter on stderr about components they did not find. Relax the policy around
+# native calls and discard their stderr; the exit code still decides.
+function Invoke-NativeQuiet {
+  param([string]$FilePath, [string[]]$ArgumentList)
+
+  $previous = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    & $FilePath @ArgumentList 2>$null | Out-Null
+    return $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previous
+  }
+}
 $DesktopDir = [Environment]::GetFolderPath('Desktop')
 $StartMenuDir = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
 $StartupDir = [Environment]::GetFolderPath('Startup')
@@ -78,8 +95,11 @@ function Resolve-Browser {
   foreach ($exe in 'msedge.exe', 'chrome.exe') {
     foreach ($hive in 'HKLM:', 'HKCU:') {
       $key = "$hive\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exe"
-      $value = (Get-ItemProperty -LiteralPath $key -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
-      if ($value -and (Test-Path -LiteralPath $value)) { return $value }
+      $item = Get-ItemProperty -LiteralPath $key -Name '(default)' -ErrorAction SilentlyContinue
+      if ($item) {
+        $value = $item.'(default)'
+        if ($value -and (Test-Path -LiteralPath $value)) { return $value }
+      }
     }
   }
   return ''
@@ -92,11 +112,15 @@ function Resolve-FaviconSource {
   $roots = @()
   if ($env:DSH_HOME) { $roots += $env:DSH_HOME } else { $roots += (Join-Path $env:USERPROFILE '.dsh') }
   # npm is absent when dsh was resolved from PATH by some other install method.
+  $previous = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
   try {
     $npmRoot = & npm root -g 2>$null
-    if ($npmRoot) { $roots += $npmRoot.Trim() }
+    if ($npmRoot) { $roots += ([string]$npmRoot).Trim() }
   } catch {
     Write-Verbose "npm not available for the global root lookup: $_"
+  } finally {
+    $ErrorActionPreference = $previous
   }
 
   foreach ($root in $roots) {
@@ -126,8 +150,11 @@ function New-IconFromSvg {
 
     $png = Join-Path $work 'icon.png'
     $url = 'file:///' + ((Join-Path $work 'icon.html') -replace '\\', '/')
-    & $Browser --headless --disable-gpu --hide-scrollbars --default-background-color=00000000 `
-      --force-device-scale-factor=1 --window-size=256,256 "--screenshot=$png" $url 2>&1 | Out-Null
+    Invoke-NativeQuiet -FilePath $Browser -ArgumentList @(
+      '--headless', '--disable-gpu', '--hide-scrollbars',
+      '--default-background-color=00000000', '--force-device-scale-factor=1',
+      '--window-size=256,256', "--screenshot=$png", $url
+    ) | Out-Null
     if (-not (Test-Path -LiteralPath $png)) { return $false }
 
     $bytes = [IO.File]::ReadAllBytes($png)
