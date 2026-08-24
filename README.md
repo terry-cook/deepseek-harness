@@ -42,13 +42,7 @@ pnpm dsh web
 
 ### Run on Windows without a terminal
 
-`dsh web` runs in the foreground, so the terminal that starts it owns the server and closing that window stops it. To install shortcuts that start the server hidden and open the Web UI in a window of its own, run this from a repository checkout:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\windows\setup.ps1
-```
-
-The script checks for a supported Node.js, installs the CLI from npm, and creates Desktop, Start Menu, and logon shortcuts. The checkout needs neither `pnpm install` nor a build. Pass `-Port`, `-Autostart none|server|window`, or `-Uninstall` to adjust or reverse the installation.
+Shortcuts that start the server hidden and open the Web UI in a window of its own: see [scripts/windows/README.md](scripts/windows/README.md).
 
 ## Community and support
 
